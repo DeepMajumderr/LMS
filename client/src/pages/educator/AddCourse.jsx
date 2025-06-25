@@ -1,14 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import uniqid from 'uniqid'
 import Quill from 'quill'
 import { assets } from '../../assets/assets'
-import { div } from 'framer-motion/client'
+import { AppContext } from '../../context/AppContext'
+import { toast } from 'react-toastify'
+import axios from 'axios'
+
 
 const AddCourse = () => {
 
   const quillRef = useRef(null)
   const editorRef = useRef(null)
-
+  const { backendUrl, getToken } = useContext(AppContext)
   const [courseTitle, setCourseTitle] = useState('')
   const [coursePrice, setcoursePrice] = useState(0)
   const [discount, setdiscount] = useState(0)
@@ -72,11 +75,11 @@ const AddCourse = () => {
   const addLecture = () => {
     setchapters(
       chapters.map((chapter) => {
-        if(chapter.chapterId === currentChapterId){
+        if (chapter.chapterId === currentChapterId) {
           const newLecture = {
             ...lectureDetails,
             lectureOrder: chapter.chapterContent.length > 0 ? chapter.
-            chapterContent.slice(-1)[0].lectureOrder + 1 : 1,
+              chapterContent.slice(-1)[0].lectureOrder + 1 : 1,
             lectureId: uniqid()
           }
           chapter.chapterContent.push(newLecture)
@@ -94,7 +97,49 @@ const AddCourse = () => {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+
+    try {
+      e.preventDefault()
+      if (!image) {
+        toast.error('Thumbnail Not Selected')
+      }
+
+      const courseData = {
+        courseTitle,
+        courseDescription: quillRef.current?.root.innerHTML || "",
+        coursePrice: Number(coursePrice),
+        discount: Number(discount),
+        courseContent: chapters
+      }
+
+      const formData = new FormData()
+      formData.append('courseData', JSON.stringify(courseData))
+      formData.append('image', image)
+
+      const token = await getToken()
+
+      const { data } = await axios.post(backendUrl + '/api/educator/add-course',
+        formData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      if (data.success) {
+        toast.success(data.message)
+        setCourseTitle('')
+        setcoursePrice(0)
+        setdiscount(0)
+        setimage(null)
+        setchapters([])
+        quillRef.current.root.innerHTML = ""
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+       console.log(error)
+       toast.error(data.message)
+    }
+
+
   }
 
   useEffect(() => {
@@ -141,7 +186,7 @@ const AddCourse = () => {
 
         <div className='flex flex-col gap-1'>
           <p>Discount %</p>
-          <input onChange={(e) => setdiscount(e, target.value)} value={discount} type="number"
+          <input onChange={(e) => setdiscount(e.target.value)} value={discount} type="number"
             placeholder='0' min={0} max={100} className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500' required />
         </div>
 
@@ -151,14 +196,14 @@ const AddCourse = () => {
             <div key={chapterIndex} className='bg-white border rounded-lg mb-4'>
               <div className='flex justify-between items-center p-4 border-b'>
                 <div className='flex items-center'>
-                  <img onClick={()=> handleChapter('toggle', chapter.chapterId)}
-                  src={assets.dropdown_icon} width={14} alt="" className=
+                  <img onClick={() => handleChapter('toggle', chapter.chapterId)}
+                    src={assets.dropdown_icon} width={14} alt="" className=
                     {`mr-2  cursor-pointer transition-all ${chapter.collapsed && "-rotate-90"}`} />
                   <span className='font-semibold'>{chapterIndex + 1} {chapter.chapterTitle}</span>
                 </div>
                 <span className='text-gray-500'>{chapter.chapterContent.length} Lectures </span>
-                <img onClick={()=> handleChapter('remove', chapter.chapterId)}
-                src={assets.cross_icon} alt="" className='cursor-pointer' />
+                <img onClick={() => handleChapter('remove', chapter.chapterId)}
+                  src={assets.cross_icon} alt="" className='cursor-pointer' />
               </div>
               {!chapter.collapsed && (
                 <div className='p-4'>

@@ -7,7 +7,7 @@ export const getAllCourse = async (req, res) => {
             .select(['-courseContent', '-enrolledStudents'])
             .populate({ path: 'educator' })
 
-        res.json({ sucess: true, courses })
+        res.json({ success: true, courses })
 
     } catch (error) {
         res.json({ success: false, message: error.message })

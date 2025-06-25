@@ -3,11 +3,14 @@ import { dummyCourses } from "../assets/assets";
 import { useNavigate } from "react-router-dom";
 import humanizeDuration from 'humanize-duration'
 import { useAuth, useUser } from "@clerk/clerk-react"
+import axios from 'axios'
+import { toast } from "react-toastify";
 
 export const AppContext = createContext()
 
 export const AppContextProvider = (props) => {
 
+    const backendUrl = import.meta.env.VITE_BACKEND_URL
     const currency = import.meta.env.VITE_CURRENCY
     const navigate = useNavigate()
 
@@ -15,12 +18,52 @@ export const AppContextProvider = (props) => {
     const { user } = useUser()
 
     const [allCourses, setallCourses] = useState([])
-    const [isEducator, setisEducator] = useState(true)
+    const [isEducator, setisEducator] = useState(false)
     const [enrolledCourses, setenrolledCourses] = useState([])
+    const [userData, setuserData] = useState(null)
+    const [enrolledStudents, setenrolledStudents] = useState()
 
     //Fetch all courses
     const fetchAllCourses = async () => {
-        setallCourses(dummyCourses)
+
+        try {
+            const { data } = await axios.get(backendUrl + '/api/course/all')
+
+            console.log(data)
+
+            if (data.success) {
+                setallCourses(data.courses)
+            } else {
+                toast.error(data.message)
+            }
+
+        } catch (error) {
+            toast.error(error.message)
+        }
+    }
+
+    // Fetch UserData
+    const fetchUserData = async () => {
+
+        if (user.publicMetadata.role === 'educator') {
+            setisEducator(true)
+        }
+
+        try {
+            const token = await getToken();
+            const { data } = await axios.get(backendUrl + '/api/user/data', {
+                headers:
+                    { Authorization: `Bearer ${token}` }
+            })
+
+            if (data.success) {
+                setuserData(data.user)
+            } else {
+                toast.error(data.message)
+            }
+        } catch (error) {
+            toast.error(data.message)
+        }
     }
 
     //Function to calculate the avg rating of a course
@@ -32,7 +75,7 @@ export const AppContextProvider = (props) => {
         course.courseRatings.forEach(rating => {
             totalRating += rating.rating
         })
-        return totalRating / course.courseRatings.length
+        return Math.floor(totalRating / course.courseRatings.length)
     }
 
     //Function to calculate coursechapter time
@@ -65,12 +108,24 @@ export const AppContextProvider = (props) => {
 
     // Fetch user enrolled courses
     const fetchUserEnrolledCourses = async () => {
-        setenrolledCourses(dummyCourses)
+        try {
+            const token = await getToken();
+            const { data } = await axios.get(backendUrl + '/api/user/enrolled-courses', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            if (data.success) {
+                setenrolledCourses(data.enrolledCourses.reverse())
+            } else {
+                toast.error(data.message)
+            }
+        } catch (error) {
+            toast.error(error.message)
+        }
     }
 
     useEffect(() => {
         fetchAllCourses()
-        fetchUserEnrolledCourses()
     }, [])
 
     const logToken = async () => {
@@ -81,8 +136,28 @@ export const AppContextProvider = (props) => {
     useEffect(() => {
         if (user) {
             logToken()
+            fetchUserData()
+            fetchUserEnrolledCourses()
         }
     }, [user])
+
+      const fetchEnrolledStudents = async () => {
+        try {
+          const token = await getToken()
+          const { data } = await axios.get(backendUrl + '/api/educator/enrolled-students',
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+    
+          if (data.success) {
+            setenrolledStudents(data.enrolledStudents.reverse())
+          } else {
+            toast.error(data.message)
+          }
+    
+        } catch (error) {
+          toast.error(error.message)
+        }
+      }
 
 
 
@@ -92,7 +167,9 @@ export const AppContextProvider = (props) => {
         navigate, calculateRating,
         isEducator, setisEducator,
         calculateChapterTime, calculateCourseDuration, calculateNoOfLectures,
-        enrolledCourses, fetchUserEnrolledCourses
+        enrolledCourses, fetchUserEnrolledCourses, backendUrl,
+        userData, setuserData, getToken, fetchAllCourses,fetchEnrolledStudents,
+        enrolledStudents
     }
 
     return (
