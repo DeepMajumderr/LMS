@@ -3,7 +3,6 @@ import { AppContext } from '../../context/AppContext'
 import SearchBar from '../../components/student/SearchBar'
 import { useParams } from 'react-router-dom'
 import CourseCard from '../../components/student/CourseCard'
-import { div } from 'framer-motion/client'
 import { assets } from '../../assets/assets'
 import Footer from '../../components/student/Footer'
 
